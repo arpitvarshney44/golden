@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const LotteryResult = require('../models/LotteryResult');
+const { getISTDate, formatISTTime, getISTHours } = require('../utils/timezone');
 
 // Generate random result for a specific 100-number block
 // e.g., block 1000 generates number between 1000-1099
@@ -28,20 +29,16 @@ function generateResultsForRange(rangeStart) {
 // Generate results for all three ranges (30 results total)
 async function generateResults() {
   try {
-    const now = new Date();
-    const hours = now.getHours();
+    const now = getISTDate();
+    const hours = getISTHours();
     
     // Only generate results between 9 AM and 10 PM
     if (hours < 9 || hours >= 22) {
-      console.log('Outside operating hours (9 AM - 10 PM)');
+      console.log('Outside operating hours (9 AM - 10 PM IST)');
       return;
     }
 
-    const timeString = now.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
+    const timeString = formatISTTime(now);
 
     // Generate results for all three major ranges
     const allResults = [];
@@ -65,7 +62,7 @@ async function generateResults() {
       }
     }
 
-    console.log(`✅ ${allResults.length} results generated at ${timeString}`);
+    console.log(`✅ ${allResults.length} results generated at ${timeString} IST`);
     console.log(`Range 1000s: ${allResults.slice(0, 10).map(r => r.result).join(', ')}`);
     console.log(`Range 3000s: ${allResults.slice(10, 20).map(r => r.result).join(', ')}`);
     console.log(`Range 5000s: ${allResults.slice(20, 30).map(r => r.result).join(', ')}`);

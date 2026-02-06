@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const LotteryResult12D = require('../models/LotteryResult12D');
+const { getISTDate, formatISTTime, getISTHours, getISTMinutes, getISTDateMidnight } = require('../utils/timezone');
 
 // Mapping of result numbers to image names
 const resultMapping = {
@@ -36,27 +37,21 @@ function calculateSession(hours, minutes) {
 // Generate 12D result
 async function generate12DResult() {
   try {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
+    const now = getISTDate();
+    const hours = getISTHours();
+    const minutes = getISTMinutes();
     
     // Only generate between 9 AM and 10 PM
     if (hours < 9 || hours >= 22) {
-      console.log('12D: Outside operating hours (9 AM - 10 PM)');
+      console.log('12D: Outside operating hours (9 AM - 10 PM IST)');
       return;
     }
     
     // Format draw time
-    const drawTime = now.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+    const drawTime = formatISTTime(now);
     
     // Set draw date to today at midnight
-    const drawDate = new Date(now);
-    drawDate.setHours(0, 0, 0, 0);
+    const drawDate = getISTDateMidnight();
     
     // Check if result already exists
     const existingResult = await LotteryResult12D.findOne({
@@ -65,7 +60,7 @@ async function generate12DResult() {
     });
     
     if (existingResult) {
-      console.log('12D: Result already exists for', drawTime);
+      console.log('12D: Result already exists for', drawTime, 'IST');
       return;
     }
     
@@ -86,7 +81,7 @@ async function generate12DResult() {
     
     await newResult.save();
     
-    console.log(`12D Result generated: ${result} (${resultNumber}) at ${drawTime}, Session ${session}`);
+    console.log(`12D Result generated: ${result} (${resultNumber}) at ${drawTime} IST, Session ${session}`);
     
     // Emit socket event for real-time update
     if (global.io) {

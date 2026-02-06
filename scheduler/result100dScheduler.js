@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const LotteryResult100D = require('../models/LotteryResult100D');
 const { checkWinningTickets } = require('../routes/lottery100d');
+const { getISTDate, formatISTTimeShort, getISTHours, getISTMinutes } = require('../utils/timezone');
 
 // Generate random number in range
 function getRandomNumber(min, max) {
@@ -11,22 +12,22 @@ function getRandomNumber(min, max) {
 // Each range has 10 groups of 100 numbers (e.g., 0-99, 100-199, 200-299, etc.)
 async function generateResults() {
     try {
-        const now = new Date();
-        const hours = now.getHours();
+        const now = getISTDate();
+        const hours = getISTHours();
         
         // Only generate between 9 AM and 10 PM
         if (hours < 9 || hours >= 22) {
-            console.log('Outside operating hours');
+            console.log('Outside operating hours (IST)');
             return;
         }
         
-        const drawDate = new Date();
+        const drawDate = new Date(now);
         drawDate.setSeconds(0);
         drawDate.setMilliseconds(0);
         
-        const drawTime = `${hours.toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        const drawTime = formatISTTimeShort(now);
         
-        console.log(`Generating 100D results for ${drawTime}`);
+        console.log(`Generating 100D results for ${drawTime} IST`);
         
         // 10 ranges, each with 10 groups of 100 numbers
         const ranges = [
@@ -74,7 +75,7 @@ async function generateResults() {
             }
         }
         
-        console.log(`Generated ${results.length} 100D results for ${drawTime}`);
+        console.log(`Generated ${results.length} 100D results for ${drawTime} IST`);
         
         // Emit socket event for real-time update
         if (global.io) {

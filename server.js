@@ -5,6 +5,9 @@ const http = require('http');
 const socketIo = require('socket.io');
 require('dotenv').config();
 
+// Set timezone to India Standard Time
+process.env.TZ = 'Asia/Kolkata';
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
