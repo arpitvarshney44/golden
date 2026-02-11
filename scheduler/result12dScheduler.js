@@ -29,9 +29,9 @@ function generateRandomResult() {
 
 // Calculate session number based on time
 function calculateSession(hours, minutes) {
-  // Starting from 9:00 AM, every 15 minutes is a new session
+  // Starting from 9:00 AM, every 5 minutes is a new session
   const totalMinutes = (hours - 9) * 60 + minutes;
-  return Math.floor(totalMinutes / 15) + 1;
+  return Math.floor(totalMinutes / 5) + 1;
 }
 
 // Generate 12D result
@@ -103,9 +103,9 @@ async function generate12DResult() {
 function start12DScheduler() {
   console.log('12D Result Scheduler started');
   
-  // Run every 15 minutes at 0, 15, 30, 45 minutes past the hour
+  // Run every 5 minutes at 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55 minutes past the hour
   // Between 9 AM and 10 PM
-  cron.schedule('0,15,30,45 9-21 * * *', async () => {
+  cron.schedule('*/5 9-21 * * *', async () => {
     console.log('12D: Generating result...');
     await generate12DResult();
   });
@@ -116,7 +116,7 @@ function start12DScheduler() {
     await generate12DResult();
   });
   
-  console.log('12D: Scheduler configured for every 15 minutes (9 AM - 10 PM)');
+  console.log('12D: Scheduler configured for every 5 minutes (9 AM - 10 PM)');
 }
 
 module.exports = { start12DScheduler, generate12DResult };
