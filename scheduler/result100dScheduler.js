@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const LotteryResult100D = require('../models/LotteryResult100D');
 const { checkWinningTickets } = require('../routes/lottery100d');
-const { getISTDate, formatISTTimeShort, getISTHours, getISTMinutes } = require('../utils/timezone');
+const { getISTDate, formatISTTime, getISTHours, getISTMinutes } = require('../utils/timezone');
 
 // Generate random number in range
 function getRandomNumber(min, max) {
@@ -25,7 +25,7 @@ async function generateResults() {
         drawDate.setSeconds(0);
         drawDate.setMilliseconds(0);
         
-        const drawTime = formatISTTimeShort(now);
+        const drawTime = formatISTTime(now);
         
         console.log(`Generating 100D results for ${drawTime} IST`);
         

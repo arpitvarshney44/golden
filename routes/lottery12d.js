@@ -128,7 +128,7 @@ router.get('/history', async (req, res) => {
     }
     
     const results = await LotteryResult12D.find(query)
-      .sort({ drawDate: -1, drawTime: -1 })
+      .sort({ createdAt: -1 })
       .limit(parseInt(limit));
     
     res.json({
@@ -149,8 +149,8 @@ router.get('/history', async (req, res) => {
 // Get today's 12D results
 router.get('/today', async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { getISTDateMidnight } = require('../utils/timezone');
+    const today = getISTDateMidnight();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
@@ -159,7 +159,7 @@ router.get('/today', async (req, res) => {
         $gte: today,
         $lt: tomorrow
       }
-    }).sort({ drawTime: -1 });
+    }).sort({ createdAt: -1 });
     
     res.json({
       success: true,
