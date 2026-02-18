@@ -27,9 +27,9 @@ router.get('/results', async (req, res) => {
             query.range = range;
         }
         
+        // No limit - get all results for the entire day
         const results = await LotteryResult100D.find(query)
-            .sort({ drawDate: -1, blockNumber: -1 })
-            .limit(1000);
+            .sort({ drawDate: -1, blockNumber: -1 });
         
         res.json({ results });
         

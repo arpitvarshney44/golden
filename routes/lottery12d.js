@@ -112,7 +112,7 @@ router.get('/latest', async (req, res) => {
 // Get 12D results history
 router.get('/history', async (req, res) => {
   try {
-    const { date, limit = 50 } = req.query;
+    const { date } = req.query;
     
     let query = {};
     if (date) {
@@ -127,9 +127,9 @@ router.get('/history', async (req, res) => {
       };
     }
     
+    // No limit - get all results for the day
     const results = await LotteryResult12D.find(query)
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
+      .sort({ createdAt: -1 });
     
     res.json({
       success: true,

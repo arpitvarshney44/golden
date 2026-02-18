@@ -159,12 +159,13 @@ router.get('/results/date/:date', async (req, res) => {
     const nextDay = new Date(date);
     nextDay.setDate(nextDay.getDate() + 1);
     
+    // No limit - get all results for the entire day
     const results = await LotteryResult3D.find({
       drawDate: {
         $gte: date,
         $lt: nextDay
       }
-    }).sort({ drawTime: -1 });
+    }).sort({ createdAt: -1 });
     
     res.json(results);
   } catch (error) {

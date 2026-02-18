@@ -6,9 +6,25 @@ const LotteryResult = require('../models/LotteryResult');
 router.get('/results/:type', async (req, res) => {
   try {
     const { type } = req.params;
-    const results = await LotteryResult.find({ type: type.toUpperCase() })
-      .sort({ date: -1 })
-      .limit(50);
+    const { date } = req.query;
+    
+    let query = { type: type.toUpperCase() };
+    
+    if (date) {
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(date);
+      endDate.setHours(23, 59, 59, 999);
+      
+      query.date = {
+        $gte: startDate,
+        $lte: endDate
+      };
+    }
+    
+    // No limit - get all results for the entire day
+    const results = await LotteryResult.find(query)
+      .sort({ date: -1 });
     res.json(results);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
