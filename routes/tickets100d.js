@@ -103,6 +103,22 @@ router.post('/create', async (req, res) => {
   }
 });
 
+// Get ticket by barcode
+router.get('/barcode/:barcodeNumber', async (req, res) => {
+  try {
+    const ticket = await Ticket100D.findOne({ barcodeNumber: req.params.barcodeNumber })
+      .populate('userId', 'loginId balance');
+    
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
+    res.json(ticket);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Get ticket by ID
 router.get('/:ticketId', async (req, res) => {
   try {
@@ -111,6 +127,37 @@ router.get('/:ticketId', async (req, res) => {
     
     if (!ticket) {
       return res.status(404).json({ message: 'Ticket not found' });
+    }
+
+    // If ticket is still pending, check if result is available and update status
+    if (ticket.winStatus === 'pending' && ticket.status === 'active') {
+      const LotteryResult100D = require('../models/LotteryResult100D');
+      
+      const results = await LotteryResult100D.find({
+        drawDate: ticket.drawDate,
+        drawTime: ticket.drawTime
+      });
+      
+      if (results.length > 0) {
+        let won = false;
+        let winAmount = 0;
+        
+        for (const num of ticket.numbers) {
+          for (const result of results) {
+            if (result.winningNumber === parseInt(num.number)) {
+              won = true;
+              winAmount += num.quantity * 180;
+            }
+          }
+        }
+        
+        ticket.winStatus = won ? 'won' : 'loss';
+        ticket.status = won ? 'won' : 'lost';
+        if (won) {
+          ticket.winAmount = winAmount;
+        }
+        await ticket.save();
+      }
     }
 
     res.json(ticket);

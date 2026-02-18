@@ -67,6 +67,12 @@ async function generateResults() {
     console.log(`Range 3000s: ${allResults.slice(10, 20).map(r => r.result).join(', ')}`);
     console.log(`Range 5000s: ${allResults.slice(20, 30).map(r => r.result).join(', ')}`);
     
+    // Check winning tickets for each result
+    const { checkWinningTickets } = require('../routes/lottery');
+    for (let result of allResults) {
+      await checkWinningTickets(now, timeString, result.result);
+    }
+    
     // Broadcast to connected clients (if using WebSocket)
     if (global.io) {
       global.io.emit('newResult', {

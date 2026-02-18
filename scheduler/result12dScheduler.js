@@ -83,6 +83,10 @@ async function generate12DResult() {
     
     console.log(`12D Result generated: ${result} (${resultNumber}) at ${drawTime} IST, Session ${session}`);
     
+    // Check winning tickets for this result
+    const { checkWinningTickets } = require('../routes/lottery12d');
+    await checkWinningTickets(drawDate, drawTime, result);
+    
     // Emit socket event for real-time update
     if (global.io) {
       global.io.emit('new12DResult', {

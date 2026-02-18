@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const Ticket = require('../models/Ticket');
+const Ticket3D = require('../models/Ticket3D');
 const User = require('../models/User');
 
 // Generate unique serial ID
 function generateSerialId() {
-  return Date.now().toString() + Math.floor(Math.random() * 1000);
+  return '3D' + Date.now().toString() + Math.floor(Math.random() * 1000);
 }
 
 // Generate barcode number (10 digits)
@@ -13,31 +13,41 @@ function generateBarcodeNumber() {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 }
 
-// Create new ticket
+// Create new 3D ticket
 router.post('/create', async (req, res) => {
   try {
-    const { loginId, numbers, drawDate, drawTime, desk, gameType } = req.body;
+    const { loginId, bets, drawDate, drawTime, selectedOptions } = req.body;
     
     // Validate input
-    if (!loginId || !numbers || numbers.length === 0) {
+    if (!loginId || !bets || bets.length === 0) {
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Validate selectedOptions
+    if (!selectedOptions || selectedOptions.length === 0) {
+      return res.status(400).json({ message: 'Please select at least one option (A, B, or C)' });
     }
 
     // Calculate totals
     let totalQuantity = 0;
-    const validNumbers = [];
+    const validBets = [];
     
-    numbers.forEach(item => {
-      if (item.quantity > 0) {
-        totalQuantity += parseInt(item.quantity);
-        validNumbers.push({
-          number: item.number,
-          quantity: parseInt(item.quantity)
+    bets.forEach(bet => {
+      if (bet.quantity > 0) {
+        totalQuantity += parseInt(bet.quantity);
+        validBets.push({
+          playType: bet.playType,
+          number: bet.number,
+          quantity: parseInt(bet.quantity),
+          pointsPerBet: bet.pointsPerBet || 10
         });
       }
     });
 
-    const totalPoints = totalQuantity * 2; // 2 points per quantity
+    // Calculate total points (10 points per quantity by default)
+    const totalPoints = validBets.reduce((sum, bet) => {
+      return sum + (bet.quantity * bet.pointsPerBet);
+    }, 0);
 
     // Find user by loginId
     const user = await User.findOne({ loginId: loginId });
@@ -61,18 +71,17 @@ router.post('/create', async (req, res) => {
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + 10);
 
-    const ticket = new Ticket({
+    const ticket = new Ticket3D({
       serialId,
       barcodeNumber,
       userId: user._id,
       loginId: user.loginId,
-      desk: desk || '',
-      gameType: gameType || '2D',
       drawDate: drawDate || new Date(),
-      drawTime: drawTime || '07:30:00 PM',
+      drawTime: drawTime || '09:00:00 AM',
+      selectedOptions: selectedOptions,
       totalQuantity,
       totalPoints,
-      numbers: validNumbers,
+      bets: validBets,
       validUntil
     });
 
@@ -100,7 +109,7 @@ router.post('/create', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating ticket:', error);
+    console.error('Error creating 3D ticket:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -108,7 +117,7 @@ router.post('/create', async (req, res) => {
 // Get ticket by barcode
 router.get('/barcode/:barcodeNumber', async (req, res) => {
   try {
-    const ticket = await Ticket.findOne({ barcodeNumber: req.params.barcodeNumber })
+    const ticket = await Ticket3D.findOne({ barcodeNumber: req.params.barcodeNumber })
       .populate('userId', 'loginId balance');
     
     if (!ticket) {
@@ -124,7 +133,7 @@ router.get('/barcode/:barcodeNumber', async (req, res) => {
 // Get ticket by ID
 router.get('/:ticketId', async (req, res) => {
   try {
-    const ticket = await Ticket.findById(req.params.ticketId)
+    const ticket = await Ticket3D.findById(req.params.ticketId)
       .populate('userId', 'loginId balance');
     
     if (!ticket) {
@@ -133,62 +142,25 @@ router.get('/:ticketId', async (req, res) => {
 
     // If ticket is still pending, check if result is available and update status
     if (ticket.winStatus === 'pending' && ticket.status === 'active') {
-      const LotteryResult = require('../models/LotteryResult');
+      const LotteryResult3D = require('../models/LotteryResult3D');
       
-      const result = await LotteryResult.findOne({
-        date: ticket.drawDate,
-        time: ticket.drawTime
+      const result = await LotteryResult3D.findOne({
+        drawDate: ticket.drawDate,
+        drawTime: ticket.drawTime
       });
       
       if (result) {
-        let won = false;
-        let winAmount = 0;
+        const { checkWinningTickets } = require('./lottery3d');
+        await checkWinningTickets(ticket.drawDate, ticket.drawTime, result.resultA, result.resultB, result.resultC);
         
-        for (const num of ticket.numbers) {
-          if (result.result === num.number.toString()) {
-            won = true;
-            winAmount += num.quantity * 180;
-          }
-        }
-        
-        ticket.winStatus = won ? 'won' : 'loss';
-        if (won) {
-          ticket.winAmount = winAmount;
-        }
-        await ticket.save();
+        // Reload ticket to get updated status
+        const updatedTicket = await Ticket3D.findById(req.params.ticketId)
+          .populate('userId', 'loginId balance');
+        return res.json(updatedTicket);
       }
     }
 
     res.json(ticket);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Get ticket by serial ID
-router.get('/serial/:serialId', async (req, res) => {
-  try {
-    const ticket = await Ticket.findOne({ serialId: req.params.serialId })
-      .populate('userId', 'loginId balance');
-    
-    if (!ticket) {
-      return res.status(404).json({ message: 'Ticket not found' });
-    }
-
-    res.json(ticket);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Get user tickets
-router.get('/user/:userId', async (req, res) => {
-  try {
-    const tickets = await Ticket.find({ userId: req.params.userId })
-      .sort({ createdAt: -1 })
-      .limit(50);
-    
-    res.json(tickets);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -202,9 +174,9 @@ router.get('/login/:loginId', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const tickets = await Ticket.find({ userId: user._id })
+    const tickets = await Ticket3D.find({ userId: user._id })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(100);
     
     res.json(tickets);
   } catch (error) {
@@ -215,7 +187,7 @@ router.get('/login/:loginId', async (req, res) => {
 // Cancel ticket
 router.post('/cancel/:ticketId', async (req, res) => {
   try {
-    const ticket = await Ticket.findById(req.params.ticketId);
+    const ticket = await Ticket3D.findById(req.params.ticketId);
     
     if (!ticket) {
       return res.status(404).json({ message: 'Ticket not found' });
@@ -232,7 +204,7 @@ router.post('/cancel/:ticketId', async (req, res) => {
     const user = await User.findById(ticket.userId);
     if (user) {
       user.balance += ticket.totalPoints;
-      await user.save();
+      await user.save({ validateModifiedOnly: true });
     }
 
     res.json({
@@ -247,32 +219,42 @@ router.post('/cancel/:ticketId', async (req, res) => {
   }
 });
 
-// Claim ticket (check win/loss)
-router.post('/:ticketId/claim', async (req, res) => {
+// Claim winning
+router.put('/claim/:ticketId', async (req, res) => {
   try {
-    const { winStatus, winningNumbers } = req.body;
-    const ticket = await Ticket.findById(req.params.ticketId);
+    const ticket = await Ticket3D.findById(req.params.ticketId);
     
     if (!ticket) {
       return res.status(404).json({ message: 'Ticket not found' });
     }
 
-    ticket.winStatus = winStatus;
-    ticket.winningNumbers = winningNumbers || [];
-    ticket.claimedAt = new Date();
-    
-    if (winStatus === 'won') {
-      ticket.status = 'won';
-    } else {
-      ticket.status = 'lost';
+    if (ticket.status !== 'won') {
+      return res.status(400).json({ message: 'This ticket has no winnings to claim' });
     }
-    
+
+    if (ticket.claimed) {
+      return res.status(400).json({ message: 'Winning already claimed' });
+    }
+
+    // Add winning amount to user balance
+    const user = await User.findById(ticket.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.balance += ticket.winAmount;
+    await user.save({ validateModifiedOnly: true });
+
+    // Mark as claimed
+    ticket.claimed = true;
+    ticket.claimedAt = new Date();
     await ticket.save();
 
     res.json({
       success: true,
-      message: winStatus === 'won' ? 'Congratulations! You won!' : 'No win this time',
-      ticket: ticket
+      message: 'Winning claimed successfully',
+      winAmount: ticket.winAmount,
+      newBalance: user.balance
     });
 
   } catch (error) {

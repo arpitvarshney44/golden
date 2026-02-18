@@ -114,4 +114,61 @@ router.post('/generate-result', async (req, res) => {
   }
 });
 
+// Check winning tickets for 2D (called after result generation)
+async function checkWinningTickets(drawDate, drawTime, winningNumber) {
+    try {
+        const Ticket = require('../models/Ticket');
+        
+        // Create date range for the draw date (entire day)
+        const startOfDay = new Date(drawDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(drawDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        // Find all active 2D tickets for this draw
+        const tickets = await Ticket.find({
+            drawDate: {
+                $gte: startOfDay,
+                $lte: endOfDay
+            },
+            drawTime,
+            status: 'active',
+            winStatus: 'pending'
+        });
+        
+        console.log(`Found ${tickets.length} 2D tickets to check for ${drawTime} on ${drawDate.toDateString()}`);
+        
+        for (const ticket of tickets) {
+            let won = false;
+            let winAmount = 0;
+            
+            // Check if any of the ticket numbers match the winning number
+            for (const num of ticket.numbers) {
+                if (num.number.toString() === winningNumber.toString()) {
+                    won = true;
+                    winAmount += num.quantity * 180; // 90x multiplier (2 points per quantity * 90)
+                }
+            }
+            
+            // Update ticket status
+            if (won) {
+                ticket.winStatus = 'won';
+                ticket.status = 'won';
+                ticket.winAmount = winAmount;
+            } else {
+                ticket.winStatus = 'loss';
+                ticket.status = 'lost';
+            }
+            
+            await ticket.save();
+        }
+        
+        console.log(`Checked ${tickets.length} 2D tickets for draw ${drawTime}, winning number: ${winningNumber}`);
+        
+    } catch (error) {
+        console.error('Error checking 2D winning tickets:', error);
+    }
+}
+
 module.exports = router;
+module.exports.checkWinningTickets = checkWinningTickets;

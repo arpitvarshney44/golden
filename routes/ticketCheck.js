@@ -33,10 +33,19 @@ router.get('/2d/:barcode', async (req, res) => {
         }
         
         // Check if result exists for this draw
+        console.log('Checking 2D ticket:', {
+            barcode: ticket.barcodeNumber,
+            drawDate: ticket.drawDate,
+            drawTime: ticket.drawTime,
+            winStatus: ticket.winStatus
+        });
+        
         const result = await LotteryResult.findOne({
             date: ticket.drawDate,
             time: ticket.drawTime
         });
+        
+        console.log('Found 2D result:', result ? { result: result.result, time: result.time } : 'No result found');
         
         // If result exists but ticket status not updated, check now
         if (result && ticket.winStatus === 'pending') {
@@ -52,8 +61,8 @@ router.get('/2d/:barcode', async (req, res) => {
                 }
             }
             
-            // Update ticket status
-            ticket.winStatus = isWinner ? 'won' : 'lost';
+            // Update ticket status - use 'loss' not 'lost'
+            ticket.winStatus = isWinner ? 'won' : 'loss';
             if (isWinner) {
                 ticket.winAmount = winAmount;
             }
@@ -69,7 +78,7 @@ router.get('/2d/:barcode', async (req, res) => {
                 winAmount: ticket.winAmount,
                 message: `Congratulations! You won ${ticket.winAmount} points!`
             });
-        } else if (ticket.winStatus === 'lost') {
+        } else if (ticket.winStatus === 'loss') {
             return res.json({
                 success: true,
                 ticket: ticket,
@@ -120,10 +129,37 @@ router.get('/100d/:barcode', async (req, res) => {
         }
         
         // Check if result exists for this draw
-        const results = await LotteryResult100D.find({
+        console.log('Checking 100D ticket:', {
+            barcode: ticket.barcodeNumber,
+            drawDate: ticket.drawDate,
+            drawTime: ticket.drawTime,
+            winStatus: ticket.winStatus,
+            numbers: ticket.numbers.map(n => n.number)
+        });
+        
+        let results = await LotteryResult100D.find({
             drawDate: ticket.drawDate,
             drawTime: ticket.drawTime
         });
+        
+        // If no exact match, try to find by date and similar time
+        if (results.length === 0) {
+            // Try matching just the date and checking all results for that date
+            const allResultsForDate = await LotteryResult100D.find({
+                drawDate: ticket.drawDate
+            });
+            
+            // Try to match time more flexibly (e.g., "11:15:00 AM" vs "11:15")
+            const ticketTime = ticket.drawTime.replace(/:\d{2}\s*(AM|PM)?$/i, '').trim(); // Remove seconds
+            results = allResultsForDate.filter(r => {
+                const resultTime = r.drawTime.replace(/:\d{2}\s*(AM|PM)?$/i, '').trim();
+                return resultTime === ticketTime || r.drawTime === ticket.drawTime;
+            });
+            
+            console.log('Flexible time match found:', results.length, 'results');
+        }
+        
+        console.log('Found 100D results:', results.length, results.length > 0 ? results.slice(0, 5).map(r => ({ winningNumber: r.winningNumber, drawTime: r.drawTime })) : 'No results found');
         
         // If result exists but ticket status not updated, check now
         if (results.length > 0 && ticket.winStatus === 'pending') {
@@ -141,12 +177,14 @@ router.get('/100d/:barcode', async (req, res) => {
                 }
             }
             
-            // Update ticket status
-            ticket.winStatus = isWinner ? 'won' : 'lost';
+            // Update ticket status - use 'loss' not 'lost'
+            ticket.winStatus = isWinner ? 'won' : 'loss';
             if (isWinner) {
                 ticket.winAmount = winAmount;
             }
             await ticket.save();
+            
+            console.log('Updated 100D ticket status:', { winStatus: ticket.winStatus, winAmount: ticket.winAmount });
         }
         
         // Return ticket status
@@ -158,7 +196,7 @@ router.get('/100d/:barcode', async (req, res) => {
                 winAmount: ticket.winAmount,
                 message: `Congratulations! You won ${ticket.winAmount} points!`
             });
-        } else if (ticket.winStatus === 'lost') {
+        } else if (ticket.winStatus === 'loss') {
             return res.json({
                 success: true,
                 ticket: ticket,
@@ -227,8 +265,8 @@ router.get('/12d/:barcode', async (req, res) => {
                 }
             }
             
-            // Update ticket status
-            ticket.winStatus = isWinner ? 'won' : 'lost';
+            // Update ticket status - use 'loss' not 'lost'
+            ticket.winStatus = isWinner ? 'won' : 'loss';
             if (isWinner) {
                 ticket.winAmount = winAmount;
             }
@@ -244,7 +282,7 @@ router.get('/12d/:barcode', async (req, res) => {
                 winAmount: ticket.winAmount,
                 message: `Congratulations! You won ${ticket.winAmount} points!`
             });
-        } else if (ticket.winStatus === 'lost') {
+        } else if (ticket.winStatus === 'loss') {
             return res.json({
                 success: true,
                 ticket: ticket,

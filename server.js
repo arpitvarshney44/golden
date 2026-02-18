@@ -33,9 +33,11 @@ mongoose.connect(process.env.MONGODB_URI)
     const { startScheduler } = require('./scheduler/resultScheduler');
     const { start100DScheduler } = require('./scheduler/result100dScheduler');
     const { start12DScheduler } = require('./scheduler/result12dScheduler');
+    const { start3DScheduler } = require('./scheduler/result3dScheduler');
     startScheduler();
     start100DScheduler();
     start12DScheduler();
+    start3DScheduler();
   })
   .catch(err => console.error('MongoDB connection error:', err));
 
@@ -55,8 +57,10 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/tickets100d', require('./routes/tickets100d'));
 app.use('/api/tickets12d', require('./routes/tickets12d'));
+app.use('/api/tickets3d', require('./routes/tickets3d'));
 app.use('/api/100d-lottery', require('./routes/lottery100d'));
 app.use('/api/12d-lottery', require('./routes/lottery12d'));
+app.use('/api/3d-lottery', require('./routes/lottery3d'));
 app.use('/api/ticket-check', require('./routes/ticketCheck'));
 
 // Health check

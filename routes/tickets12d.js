@@ -129,6 +129,34 @@ router.get('/:ticketId', async (req, res) => {
       return res.status(404).json({ message: 'Ticket not found' });
     }
 
+    // If ticket is still pending, check if result is available and update status
+    if (ticket.winStatus === 'pending' && ticket.status === 'active') {
+      const LotteryResult12D = require('../models/LotteryResult12D');
+      
+      const result = await LotteryResult12D.findOne({
+        drawDate: ticket.drawDate,
+        drawTime: ticket.drawTime
+      });
+      
+      if (result) {
+        let won = false;
+        let winAmount = 0;
+        
+        for (const selection of ticket.selections) {
+          if (result.result === selection.image) {
+            won = true;
+            winAmount += selection.quantity * 10;
+          }
+        }
+        
+        ticket.winStatus = won ? 'won' : 'loss';
+        if (won) {
+          ticket.winAmount = winAmount;
+        }
+        await ticket.save();
+      }
+    }
+
     res.json(ticket);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

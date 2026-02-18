@@ -176,4 +176,61 @@ router.get('/today', async (req, res) => {
   }
 });
 
+// Check winning tickets for 12D (called after result generation)
+async function checkWinningTickets(drawDate, drawTime, winningImage) {
+    try {
+        const Ticket12D = require('../models/Ticket12D');
+        
+        // Create date range for the draw date (entire day)
+        const startOfDay = new Date(drawDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(drawDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        // Find all active 12D tickets for this draw
+        const tickets = await Ticket12D.find({
+            drawDate: {
+                $gte: startOfDay,
+                $lte: endOfDay
+            },
+            drawTime: drawTime,
+            status: 'active',
+            winStatus: 'pending'
+        });
+        
+        console.log(`Found ${tickets.length} 12D tickets to check for ${drawTime} on ${drawDate.toDateString()}`);
+        
+        for (const ticket of tickets) {
+            let won = false;
+            let winAmount = 0;
+            
+            // Check if any of the ticket selections match the winning image
+            for (const selection of ticket.selections) {
+                if (selection.image === winningImage) {
+                    won = true;
+                    winAmount += selection.quantity * 10; // 10x multiplier for 12D
+                }
+            }
+            
+            // Update ticket status
+            if (won) {
+                ticket.winStatus = 'won';
+                ticket.status = 'won';
+                ticket.winAmount = winAmount;
+            } else {
+                ticket.winStatus = 'loss';
+                ticket.status = 'lost';
+            }
+            
+            await ticket.save();
+        }
+        
+        console.log(`Checked ${tickets.length} 12D tickets for draw ${drawTime}, winning image: ${winningImage}`);
+        
+    } catch (error) {
+        console.error('Error checking 12D winning tickets:', error);
+    }
+}
+
 module.exports = router;
+module.exports.checkWinningTickets = checkWinningTickets;

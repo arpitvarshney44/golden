@@ -57,45 +57,56 @@ router.get('/latest', async (req, res) => {
 // Check winning tickets (called after result generation)
 async function checkWinningTickets(drawDate, drawTime, winningNumber) {
     try {
+        const Ticket100D = require('../models/Ticket100D');
+        
+        // Create date range for the draw date (entire day)
+        const startOfDay = new Date(drawDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(drawDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
         // Find all active 100D tickets for this draw
-        const tickets = await Ticket.find({
-            drawDate,
+        const tickets = await Ticket100D.find({
+            drawDate: {
+                $gte: startOfDay,
+                $lte: endOfDay
+            },
             drawTime,
-            gameType: '100D',
-            status: 'active'
+            status: 'active',
+            winStatus: 'pending'
         });
+        
+        console.log(`Found ${tickets.length} 100D tickets to check for ${drawTime} on ${drawDate.toDateString()}`);
         
         for (const ticket of tickets) {
             let won = false;
             let winAmount = 0;
-            const winningNumbersFound = [];
             
             // Check if any of the ticket numbers match the winning number
-            ticket.numbers.forEach(item => {
+            for (const item of ticket.numbers) {
                 if (parseInt(item.number) === winningNumber) {
                     won = true;
-                    winAmount += item.quantity * 2 * 80; // quantity * 2 points * 80x payout
-                    winningNumbersFound.push(item.number);
+                    winAmount += item.quantity * 180; // 90x multiplier (2 points per quantity * 90)
                 }
-            });
+            }
             
+            // Update ticket status
             if (won) {
-                ticket.status = 'won';
                 ticket.winStatus = 'won';
-                ticket.winningNumbers = winningNumbersFound;
-                // Note: winAmount is stored as totalPoints equivalent
+                ticket.status = 'won';
+                ticket.winAmount = winAmount;
             } else {
-                ticket.status = 'lost';
                 ticket.winStatus = 'loss';
+                ticket.status = 'lost';
             }
             
             await ticket.save();
         }
         
-        console.log(`Checked ${tickets.length} 100D tickets for draw ${drawTime}`);
+        console.log(`Checked ${tickets.length} 100D tickets for draw ${drawTime}, winning number: ${winningNumber}`);
         
     } catch (error) {
-        console.error('Error checking winning tickets:', error);
+        console.error('Error checking 100D winning tickets:', error);
     }
 }
 
