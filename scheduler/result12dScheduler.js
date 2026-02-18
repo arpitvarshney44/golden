@@ -41,9 +41,9 @@ async function generate12DResult() {
     const hours = getISTHours();
     const minutes = getISTMinutes();
     
-    // Only generate between 9 AM and 10 PM
-    if (hours < 9 || hours >= 22) {
-      console.log('12D: Outside operating hours (9 AM - 10 PM IST)');
+    // Only generate between 9 AM and 10:00 PM (inclusive)
+    if (hours < 9 || (hours >= 22 && minutes > 0)) {
+      console.log('12D: Outside operating hours (9 AM - 10:00 PM IST)');
       return;
     }
     

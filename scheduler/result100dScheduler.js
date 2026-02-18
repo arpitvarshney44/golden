@@ -14,9 +14,10 @@ async function generateResults() {
     try {
         const now = getISTDate();
         const hours = getISTHours();
+        const minutes = getISTMinutes();
         
-        // Only generate between 9 AM and 10 PM
-        if (hours < 9 || hours >= 22) {
+        // Only generate between 9 AM and 10:00 PM (inclusive)
+        if (hours < 9 || (hours >= 22 && minutes > 0)) {
             console.log('Outside operating hours (IST)');
             return;
         }
@@ -107,7 +108,13 @@ function start100DScheduler() {
         await generateResults();
     });
     
-    console.log('100D scheduler started - will run every 15 minutes from 9 AM to 10 PM');
+    // Also run at 10:00 PM (22:00) for the last draw
+    cron.schedule('0 22 * * *', async () => {
+        console.log('100D: Generating final result of the day...');
+        await generateResults();
+    });
+    
+    console.log('100D scheduler started - will run every 15 minutes from 9 AM to 10:00 PM');
 }
 
 module.exports = { start100DScheduler, generateResults };

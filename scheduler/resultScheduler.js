@@ -31,10 +31,11 @@ async function generateResults() {
   try {
     const now = getISTDate();
     const hours = getISTHours();
+    const minutes = getISTMinutes();
     
-    // Only generate results between 9 AM and 10 PM
-    if (hours < 9 || hours >= 22) {
-      console.log('Outside operating hours (9 AM - 10 PM IST)');
+    // Only generate results between 9 AM and 10:00 PM (inclusive)
+    if (hours < 9 || (hours >= 22 && minutes > 0)) {
+      console.log('Outside operating hours (9 AM - 10:00 PM IST)');
       return;
     }
 
@@ -91,12 +92,18 @@ async function generateResults() {
 // Schedule results every 15 minutes
 function startScheduler() {
   // Run every 15 minutes: at :00, :15, :30, :45
-  cron.schedule('0,15,30,45 * * * *', async () => {
+  cron.schedule('0,15,30,45 9-21 * * *', async () => {
     console.log('Running scheduled result generation...');
     await generateResults();
   });
+  
+  // Also run at 10:00 PM (22:00) for the last draw
+  cron.schedule('0 22 * * *', async () => {
+    console.log('2D: Generating final result of the day...');
+    await generateResults();
+  });
 
-  console.log('Result scheduler started - Running every 15 minutes');
+  console.log('Result scheduler started - Running every 15 minutes from 9 AM to 10:00 PM');
 }
 
 // Manual trigger for testing

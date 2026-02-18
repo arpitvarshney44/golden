@@ -22,9 +22,9 @@ async function generate3DResult() {
     const hours = getISTHours();
     const minutes = getISTMinutes();
     
-    // Only generate between 9 AM and 10 PM
-    if (hours < 9 || hours >= 22) {
-      console.log('3D: Outside operating hours (9 AM - 10 PM IST)');
+    // Only generate between 9 AM and 10:00 PM (inclusive)
+    if (hours < 9 || (hours >= 22 && minutes > 0)) {
+      console.log('3D: Outside operating hours (9 AM - 10:00 PM IST)');
       return;
     }
     
@@ -101,7 +101,13 @@ function start3DScheduler() {
     await generate3DResult();
   });
   
-  console.log('3D: Scheduler configured for every 15 minutes (9 AM - 10 PM)');
+  // Also run at 10:00 PM (22:00) for the last draw
+  cron.schedule('0 22 * * *', async () => {
+    console.log('3D: Generating final result of the day...');
+    await generate3DResult();
+  });
+  
+  console.log('3D: Scheduler configured for every 15 minutes (9 AM - 10:00 PM)');
 }
 
 module.exports = { start3DScheduler, generate3DResult };
