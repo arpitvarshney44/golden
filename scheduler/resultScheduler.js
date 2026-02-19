@@ -36,27 +36,71 @@ async function generateResults() {
     
     // Only generate results between 9 AM and 10:00 PM (inclusive)
     if (hours < 9 || (hours >= 22 && minutes > 0)) {
-      console.log('2D: Outside operating hours (9 AM - 10:00 PM IST)');
       return;
     }
 
     const timeString = formatISTTime(now);
 
-    // Generate smart 2D result based on bets and winning percentage
-    const smartResult = await generateSmart2DResult(now, timeString);
+    // Check for manual result first
+    const { getManualResult } = require('../routes/admin');
+    const manualResult = await getManualResult('2D', now, timeString);
+    
+    let smartResult;
+    if (manualResult) {
+      // Manual result for 2D is an array of 30 numbers
+      // We'll use the first non-null number as the main 2D result
+      if (Array.isArray(manualResult)) {
+        // Find first non-null value
+        const firstValue = manualResult.find(val => val !== null && val !== undefined);
+        if (firstValue !== undefined) {
+          smartResult = firstValue.toString().padStart(2, '0').slice(-2);
+        } else {
+          // All values are null, generate smart result
+          smartResult = await generateSmart2DResult(now, timeString);
+        }
+      } else {
+        smartResult = manualResult;
+      }
+    } else {
+      // Generate smart 2D result based on bets and winning percentage
+      smartResult = await generateSmart2DResult(now, timeString);
+    }
 
-    // Generate results for all three major ranges (for backward compatibility)
+    // Generate results for all three major ranges
     const allResults = [];
     const ranges = [1000, 3000, 5000];
     
+    // Check if we have manual results array for the 30 numbers
+    let manualArray = null;
+    if (manualResult && Array.isArray(manualResult) && manualResult.length === 30) {
+      manualArray = manualResult;
+    }
+    
+    let arrayIndex = 0;
     for (let rangeStart of ranges) {
       const rangeResults = generateResultsForRange(rangeStart);
       
       // Save each result to database
       for (let item of rangeResults) {
+        let finalResult;
+        
+        // Check if we have a manual value for this position
+        if (manualArray && arrayIndex < 30) {
+          const manualValue = manualArray[arrayIndex];
+          if (manualValue !== null && manualValue !== undefined) {
+            finalResult = manualValue;
+          } else {
+            // Use the randomly generated result if manual value is null
+            finalResult = item.result;
+          }
+          arrayIndex++;
+        } else {
+          finalResult = item.result;
+        }
+        
         const result = new LotteryResult({
           type: '100D',
-          result: item.result.toString(),
+          result: finalResult.toString(),
           range: rangeStart.toString(),
           block: item.block.toString(),
           date: now,
@@ -75,12 +119,6 @@ async function generateResults() {
       time: timeString
     });
     await main2DResult.save();
-
-    console.log(`✅ 2D Smart Result: ${smartResult} at ${timeString} IST`);
-    console.log(`✅ ${allResults.length} additional results generated at ${timeString} IST`);
-    console.log(`Range 1000s: ${allResults.slice(0, 10).map(r => r.result).join(', ')}`);
-    console.log(`Range 3000s: ${allResults.slice(10, 20).map(r => r.result).join(', ')}`);
-    console.log(`Range 5000s: ${allResults.slice(20, 30).map(r => r.result).join(', ')}`);
     
     // Check winning tickets for 2D result
     const { checkWinningTickets } = require('../routes/lottery');
@@ -114,28 +152,19 @@ async function generateResults() {
 
 // Schedule results every 15 minutes
 function startScheduler() {
-  console.log('🚀 2D Result Scheduler initializing...');
-  
   // Run every 15 minutes: at :00, :15, :30, :45
   cron.schedule('0,15,30,45 9-21 * * *', async () => {
-    console.log('⏰ 2D Scheduled trigger activated at', new Date().toISOString());
     await generateResults();
   });
   
   // Also run at 10:00 PM (22:00) for the last draw
   cron.schedule('0 22 * * *', async () => {
-    console.log('⏰ 2D Final draw trigger activated at', new Date().toISOString());
     await generateResults();
   });
-
-  console.log('✅ 2D Result scheduler started - Running every 15 minutes from 9 AM to 10:00 PM');
-  console.log('📅 Current IST time:', formatISTTime(getISTDate()));
-  console.log('🕐 Current IST hour:', getISTHours());
 }
 
 // Manual trigger for testing
 async function triggerManualResult() {
-  console.log('Manual result generation triggered');
   return await generateResults();
 }
 

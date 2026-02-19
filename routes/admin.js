@@ -655,3 +655,267 @@ router.get('/bet-stats/:gameType/:drawDate/:drawTime', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+
+// Manual Results Management
+const ManualResult = require('../models/ManualResult');
+
+// Get manual results for a game type
+router.get('/manual-results/:gameType', async (req, res) => {
+  try {
+    const { gameType } = req.params;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const results = await ManualResult.find({
+      gameType,
+      drawDate: { $gte: today },
+      used: false
+    }).sort({ drawTime: 1 });
+    
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Error fetching manual results:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Set manual result
+router.post('/manual-results', async (req, res) => {
+  try {
+    const { gameType, drawDate, drawTime, result } = req.body;
+    
+    // Check if manual result already exists
+    const existing = await ManualResult.findOne({
+      gameType,
+      drawDate: new Date(drawDate),
+      drawTime
+    });
+    
+    if (existing) {
+      // Update existing
+      existing.result = result;
+      existing.used = false;
+      await existing.save();
+      
+      console.log(`✏️  Manual result updated: ${gameType} - ${drawTime} = ${result}`);
+      res.json({ success: true, message: 'Manual result updated', result: existing });
+    } else {
+      // Create new
+      const manualResult = new ManualResult({
+        gameType,
+        drawDate: new Date(drawDate),
+        drawTime,
+        result
+      });
+      
+      await manualResult.save();
+      
+      console.log(`✏️  Manual result set: ${gameType} - ${drawTime} = ${result}`);
+      res.json({ success: true, message: 'Manual result set', result: manualResult });
+    }
+  } catch (error) {
+    console.error('Error setting manual result:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Delete manual result
+router.delete('/manual-results', async (req, res) => {
+  try {
+    const { gameType, drawTime } = req.body;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const result = await ManualResult.findOneAndDelete({
+      gameType,
+      drawTime,
+      drawDate: { $gte: today }
+    });
+    
+    if (result) {
+      console.log(`🗑️  Manual result deleted: ${gameType} - ${drawTime}`);
+      res.json({ success: true, message: 'Manual result deleted' });
+    } else {
+      res.status(404).json({ success: false, message: 'Manual result not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting manual result:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Helper function to check for manual result (to be used by schedulers)
+async function getManualResult(gameType, drawDate, drawTime) {
+  try {
+    // Normalize the drawDate to start of day
+    const searchDate = new Date(drawDate);
+    searchDate.setHours(0, 0, 0, 0);
+    
+    const nextDay = new Date(searchDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    
+    console.log(`🔍 Searching manual result: ${gameType} - Date: ${searchDate.toISOString()} - Time: ${drawTime}`);
+    
+    const manualResult = await ManualResult.findOne({
+      gameType,
+      drawDate: {
+        $gte: searchDate,
+        $lt: nextDay
+      },
+      drawTime,
+      used: false
+    });
+    
+    if (manualResult) {
+      // Mark as used
+      manualResult.used = true;
+      manualResult.usedAt = new Date();
+      await manualResult.save();
+      
+      console.log(`📌 Using manual result: ${gameType} - ${drawTime} = ${JSON.stringify(manualResult.result).substring(0, 100)}`);
+      return manualResult.result;
+    }
+    
+    console.log(`❌ No manual result found for: ${gameType} - ${drawTime}`);
+    return null;
+  } catch (error) {
+    console.error('Error checking manual result:', error);
+    return null;
+  }
+}
+
+module.exports.getManualResult = getManualResult;
+
+
+// Get current bets for a specific game type and time slot
+router.get('/current-bets/:gameType', async (req, res) => {
+  try {
+    const { gameType } = req.params;
+    const { date, time } = req.query;
+    
+    if (!date || !time) {
+      return res.status(400).json({ message: 'Date and time are required' });
+    }
+    
+    const drawDate = new Date(date);
+    drawDate.setHours(0, 0, 0, 0);
+    
+    let bets = [];
+    let Model;
+    
+    // Get appropriate model based on game type
+    switch(gameType) {
+      case '2D':
+        Model = require('../models/Ticket');
+        break;
+      case '3D':
+        Model = require('../models/Ticket3D');
+        break;
+      case '12D':
+        Model = require('../models/Ticket12D');
+        break;
+      case '100D':
+        Model = require('../models/Ticket100D');
+        break;
+      default:
+        return res.status(400).json({ message: 'Invalid game type' });
+    }
+    
+    // Fetch bets for the specific time slot
+    bets = await Model.find({
+      drawDate: drawDate,
+      drawTime: time,
+      status: 'active'
+    }).sort({ createdAt: -1 });
+    
+    // Calculate statistics
+    const totalBets = bets.length;
+    const totalPoints = bets.reduce((sum, bet) => sum + bet.totalPoints, 0);
+    const uniqueRetailers = new Set(bets.map(bet => bet.loginId)).size;
+    
+    // Calculate potential payout based on game type
+    let potentialPayout = 0;
+    
+    if (gameType === '2D' || gameType === '100D') {
+      // 90x multiplier
+      potentialPayout = bets.reduce((sum, bet) => {
+        return sum + bet.numbers.reduce((numSum, n) => numSum + (n.quantity * 2 * 90), 0);
+      }, 0);
+    } else if (gameType === '3D') {
+      // Various multipliers
+      const multipliers = {
+        'straight': 900,
+        'box-3-way': 300,
+        'box-6-way': 150,
+        'front-pair': 90,
+        'back-pair': 90,
+        'split-pair': 90,
+        'any-pair': 30
+      };
+      potentialPayout = bets.reduce((sum, bet) => {
+        return sum + bet.bets.reduce((betSum, b) => {
+          return betSum + (b.quantity * b.pointsPerBet * (multipliers[b.playType] || 0));
+        }, 0);
+      }, 0);
+    } else if (gameType === '12D') {
+      // 10x multiplier
+      potentialPayout = bets.reduce((sum, bet) => {
+        return sum + bet.selections.reduce((selSum, s) => selSum + (s.quantity * 10 * 10), 0);
+      }, 0);
+    }
+    
+    res.json({
+      success: true,
+      bets,
+      stats: {
+        totalBets,
+        totalPoints,
+        uniqueRetailers,
+        potentialPayout
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching current bets:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+
+// Get all tickets for a specific game type (admin only)
+router.get('/tickets/all/:gameType', async (req, res) => {
+  try {
+    const { gameType } = req.params;
+    
+    let tickets = [];
+    let Model;
+    
+    // Get appropriate model based on game type
+    switch(gameType) {
+      case '2D':
+        Model = require('../models/Ticket');
+        break;
+      case '3D':
+        Model = require('../models/Ticket3D');
+        break;
+      case '12D':
+        Model = require('../models/Ticket12D');
+        break;
+      case '100D':
+        Model = require('../models/Ticket100D');
+        break;
+      default:
+        return res.status(400).json({ message: 'Invalid game type' });
+    }
+    
+    // Fetch all active tickets
+    tickets = await Model.find({ status: 'active' }).sort({ createdAt: -1 });
+    
+    res.json(tickets);
+    
+  } catch (error) {
+    console.error('Error fetching tickets:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});

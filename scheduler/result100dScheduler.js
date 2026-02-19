@@ -19,7 +19,6 @@ async function generateResults() {
         
         // Only generate between 9 AM and 10:00 PM (inclusive)
         if (hours < 9 || (hours >= 22 && minutes > 0)) {
-            console.log('Outside operating hours (IST)');
             return;
         }
         
@@ -29,7 +28,13 @@ async function generateResults() {
         
         const drawTime = formatISTTime(now);
         
-        console.log(`Generating 100D results for ${drawTime} IST`);
+        
+        // Check for manual result ONCE before the loop
+        const { getManualResult } = require('../routes/admin');
+        const manualResultData = await getManualResult('100D', drawDate, drawTime);
+        
+        if (manualResultData && Array.isArray(manualResultData) && manualResultData.length === 100) {
+        }
         
         // 10 ranges, each with 10 groups of 100 numbers
         const ranges = [
@@ -57,8 +62,23 @@ async function generateResults() {
                 const groupStart = range.start + (group * 100);
                 const groupEnd = groupStart + 99;
                 
-                // Generate smart result based on bets and winning percentage
-                const winningNumber = await generateSmart100DResult(drawDate, drawTime, groupStart);
+                let winningNumber;
+                
+                if (manualResultData && Array.isArray(manualResultData) && manualResultData.length === 100) {
+                    // Use the corresponding number from the array (blockNumber - 1 as index)
+                    const manualValue = manualResultData[blockNumber - 1];
+                    
+                    if (manualValue !== null && manualValue !== undefined) {
+                        // Use manual value if provided
+                        winningNumber = manualValue;
+                    } else {
+                        // Generate smart result for this position if manual value is null
+                        winningNumber = await generateSmart100DResult(drawDate, drawTime, groupStart);
+                    }
+                } else {
+                    // Generate smart result based on bets and winning percentage
+                    winningNumber = await generateSmart100DResult(drawDate, drawTime, groupStart);
+                }
                 
                 const result = new LotteryResult100D({
                     drawDate,
@@ -78,7 +98,6 @@ async function generateResults() {
             }
         }
         
-        console.log(`Generated ${results.length} 100D results for ${drawTime} IST`);
         
         // Emit socket event for real-time update
         if (global.io) {
@@ -96,29 +115,22 @@ async function generateResults() {
         return results;
         
     } catch (error) {
-        console.error('Error generating 100D results:', error);
     }
 }
 
 // Schedule to run every 15 minutes
 function start100DScheduler() {
-    console.log('🚀 100D Result Scheduler initializing...');
     
     // Run every 15 minutes: 00, 15, 30, 45
     cron.schedule('0,15,30,45 9-21 * * *', async () => {
-        console.log('⏰ 100D Scheduled trigger activated at', new Date().toISOString());
         await generateResults();
     });
     
     // Also run at 10:00 PM (22:00) for the last draw
     cron.schedule('0 22 * * *', async () => {
-        console.log('⏰ 100D Final draw trigger activated at', new Date().toISOString());
         await generateResults();
     });
     
-    console.log('✅ 100D scheduler started - will run every 15 minutes from 9 AM to 10:00 PM');
-    console.log('📅 Current IST time:', formatISTTime(getISTDate()));
-    console.log('🕐 Current IST hour:', getISTHours());
 }
 
 module.exports = { start100DScheduler, generateResults };

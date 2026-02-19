@@ -120,29 +120,15 @@ async function calculate100DBetDistribution(drawDate, drawTime) {
 // Generate smart result for 2D game
 async function generateSmart2DResult(drawDate, drawTime) {
   try {
-    console.log('\n========================================');
-    console.log('🎯 2D SMART RESULT GENERATION STARTED');
-    console.log('========================================');
-    console.log(`📅 Draw Date: ${drawDate}`);
-    console.log(`⏰ Draw Time: ${drawTime}`);
-    
     const settings = await getGameSettings('2D');
-    console.log(`⚙️  Winning Percentage Setting: ${settings.winningPercentage}%`);
-    
     const { distribution, totalPoints } = await calculate2DBetDistribution(drawDate, drawTime);
-    console.log(`💰 Total Points Collected: ${totalPoints}`);
     
     if (totalPoints === 0) {
-      console.log('⚠️  No bets placed for this draw');
       const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
-      console.log(`🎲 Generating random result: ${random}`);
-      console.log('========================================\n');
       return random;
     }
     
     const maxAllowedPayout = totalPoints * (settings.winningPercentage / 100);
-    console.log(`📊 Maximum Allowed Payout: ${maxAllowedPayout.toFixed(2)} (${settings.winningPercentage}% of ${totalPoints})`);
-    console.log(`🏦 House Edge: ${(100 - settings.winningPercentage)}%`);
     
     // Get all possible numbers (00-99)
     const allNumbers = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
@@ -154,59 +140,25 @@ async function generateSmart2DResult(drawDate, drawTime) {
       bets: distribution[num]?.bets || 0
     })).sort((a, b) => a.payout - b.payout);
     
-    // Show top 5 most bet numbers
-    const topBetNumbers = [...sortedNumbers].sort((a, b) => b.bets - a.bets).slice(0, 5);
-    console.log('\n📈 Top 5 Most Bet Numbers:');
-    topBetNumbers.forEach((n, i) => {
-      console.log(`   ${i + 1}. Number ${n.number}: ${n.bets} bets, Payout: ${n.payout}`);
-    });
-    
-    // Show top 5 least bet numbers
-    const leastBetNumbers = sortedNumbers.slice(0, 5);
-    console.log('\n📉 Top 5 Least Bet Numbers (Best for House):');
-    leastBetNumbers.forEach((n, i) => {
-      console.log(`   ${i + 1}. Number ${n.number}: ${n.bets} bets, Payout: ${n.payout}`);
-    });
-    
     // Find numbers within allowed payout range
     const validNumbers = sortedNumbers.filter(n => n.payout <= maxAllowedPayout);
-    console.log(`\n✅ Valid Numbers (within payout limit): ${validNumbers.length}/100`);
     
     if (validNumbers.length > 0) {
       // Prefer numbers with lower payouts (better for house)
       // But add some randomness to avoid patterns
       const topCandidates = validNumbers.slice(0, Math.max(10, Math.floor(validNumbers.length * 0.3)));
-      console.log(`🎯 Top Candidates Selected: ${topCandidates.length} numbers`);
-      
       const selected = topCandidates[Math.floor(Math.random() * topCandidates.length)];
-      
-      console.log('\n🎊 RESULT SELECTED:');
-      console.log(`   Number: ${selected.number}`);
-      console.log(`   Bets on this number: ${selected.bets}`);
-      console.log(`   Payout if wins: ${selected.payout}`);
-      console.log(`   House profit: ${totalPoints - selected.payout}`);
-      console.log(`   Actual payout %: ${((selected.payout / totalPoints) * 100).toFixed(2)}%`);
-      console.log('========================================\n');
-      
       return selected.number;
     }
     
     // If no valid numbers (all exceed limit), pick the one with lowest payout
-    console.log('\n⚠️  WARNING: All numbers exceed payout limit!');
-    console.log('🔧 Selecting number with lowest payout to minimize loss');
     const selected = sortedNumbers[0];
-    console.log(`   Number: ${selected.number}`);
-    console.log(`   Payout: ${selected.payout}`);
-    console.log(`   Loss: ${selected.payout - totalPoints}`);
-    console.log('========================================\n');
     return selected.number;
     
   } catch (error) {
-    console.error('❌ Error generating smart 2D result:', error);
+    console.error('Error generating smart 2D result:', error);
     // Fallback to random
     const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
-    console.log(`🎲 Fallback to random: ${random}`);
-    console.log('========================================\n');
     return random;
   }
 }
@@ -214,30 +166,16 @@ async function generateSmart2DResult(drawDate, drawTime) {
 // Generate smart result for 12D game
 async function generateSmart12DResult(drawDate, drawTime) {
   try {
-    console.log('\n========================================');
-    console.log('🎯 12D SMART RESULT GENERATION STARTED');
-    console.log('========================================');
-    console.log(`📅 Draw Date: ${drawDate}`);
-    console.log(`⏰ Draw Time: ${drawTime}`);
-    
     const settings = await getGameSettings('12D');
-    console.log(`⚙️  Winning Percentage Setting: ${settings.winningPercentage}%`);
-    
     const { distribution, totalPoints } = await calculate12DBetDistribution(drawDate, drawTime);
-    console.log(`💰 Total Points Collected: ${totalPoints}`);
     
     if (totalPoints === 0) {
-      console.log('⚠️  No bets placed for this draw');
       const images = ['umbrella', 'book', 'basket', 'butterfly', 'bucket', 'football', 'goat', 'spinning-top', 'rose', 'sun', 'bird', 'rabbit'];
       const random = images[Math.floor(Math.random() * images.length)];
-      console.log(`🎲 Generating random result: ${random}`);
-      console.log('========================================\n');
       return random;
     }
     
     const maxAllowedPayout = totalPoints * (settings.winningPercentage / 100);
-    console.log(`📊 Maximum Allowed Payout: ${maxAllowedPayout.toFixed(2)} (${settings.winningPercentage}% of ${totalPoints})`);
-    console.log(`🏦 House Edge: ${(100 - settings.winningPercentage)}%`);
     
     // All possible images (matching the model enum)
     const allImages = ['umbrella', 'book', 'basket', 'butterfly', 'bucket', 'football', 'goat', 'spinning-top', 'rose', 'sun', 'bird', 'rabbit'];
@@ -249,53 +187,25 @@ async function generateSmart12DResult(drawDate, drawTime) {
       bets: distribution[img]?.bets || 0
     })).sort((a, b) => a.payout - b.payout);
     
-    // Show all images with bet info
-    console.log('\n📊 All Images Bet Distribution:');
-    sortedImages.forEach((img, i) => {
-      const status = img.payout <= maxAllowedPayout ? '✅' : '❌';
-      console.log(`   ${status} ${img.image.padEnd(15)}: ${img.bets} bets, Payout: ${img.payout}`);
-    });
-    
     // Find images within allowed payout range
     const validImages = sortedImages.filter(i => i.payout <= maxAllowedPayout);
-    console.log(`\n✅ Valid Images (within payout limit): ${validImages.length}/12`);
     
     if (validImages.length > 0) {
       // Prefer images with lower payouts
       const topCandidates = validImages.slice(0, Math.max(3, Math.floor(validImages.length * 0.4)));
-      console.log(`🎯 Top Candidates Selected: ${topCandidates.length} images`);
-      console.log('   Candidates:', topCandidates.map(c => c.image).join(', '));
-      
       const selected = topCandidates[Math.floor(Math.random() * topCandidates.length)];
-      
-      console.log('\n🎊 RESULT SELECTED:');
-      console.log(`   Image: ${selected.image}`);
-      console.log(`   Bets on this image: ${selected.bets}`);
-      console.log(`   Payout if wins: ${selected.payout}`);
-      console.log(`   House profit: ${totalPoints - selected.payout}`);
-      console.log(`   Actual payout %: ${((selected.payout / totalPoints) * 100).toFixed(2)}%`);
-      console.log('========================================\n');
-      
       return selected.image;
     }
     
     // If no valid images, pick the one with lowest payout
-    console.log('\n⚠️  WARNING: All images exceed payout limit!');
-    console.log('🔧 Selecting image with lowest payout to minimize loss');
     const selected = sortedImages[0];
-    console.log(`   Image: ${selected.image}`);
-    console.log(`   Payout: ${selected.payout}`);
-    console.log(`   Loss: ${selected.payout - totalPoints}`);
-    console.log('========================================\n');
     return selected.image;
     
   } catch (error) {
-    console.error('❌ Error generating smart 12D result:', error);
+    console.error('Error generating smart 12D result:', error);
     // Fallback to random
     const images = ['umbrella', 'book', 'basket', 'butterfly', 'bucket', 'football', 'goat', 'spinning-top', 'rose', 'sun', 'bird', 'rabbit'];
     const random = images[Math.floor(Math.random() * images.length)];
-    console.log(`🎲 Fallback to random: ${random}`);
-    console.log('========================================\n');
     return random;
   }
 }
@@ -303,32 +213,17 @@ async function generateSmart12DResult(drawDate, drawTime) {
 // Generate smart result for 100D game
 async function generateSmart100DResult(drawDate, drawTime, blockStart) {
   try {
-    console.log('\n========================================');
-    console.log('🎯 100D SMART RESULT GENERATION STARTED');
-    console.log('========================================');
-    console.log(`📅 Draw Date: ${drawDate}`);
-    console.log(`⏰ Draw Time: ${drawTime}`);
-    console.log(`🎲 Block Range: ${blockStart} - ${blockStart + 99}`);
-    
     const settings = await getGameSettings('100D');
-    console.log(`⚙️  Winning Percentage Setting: ${settings.winningPercentage}%`);
-    
     const { distribution, totalPoints } = await calculate100DBetDistribution(drawDate, drawTime);
-    console.log(`💰 Total Points Collected: ${totalPoints}`);
     
     if (totalPoints === 0) {
-      console.log('⚠️  No bets placed for this draw');
       const min = blockStart;
       const max = blockStart + 99;
       const random = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`🎲 Generating random result: ${random}`);
-      console.log('========================================\n');
       return random;
     }
     
     const maxAllowedPayout = totalPoints * (settings.winningPercentage / 100);
-    console.log(`📊 Maximum Allowed Payout: ${maxAllowedPayout.toFixed(2)} (${settings.winningPercentage}% of ${totalPoints})`);
-    console.log(`🏦 House Edge: ${(100 - settings.winningPercentage)}%`);
     
     // All possible numbers in this block
     const allNumbers = Array.from({ length: 100 }, (_, i) => (blockStart + i).toString());
@@ -340,60 +235,26 @@ async function generateSmart100DResult(drawDate, drawTime, blockStart) {
       bets: distribution[num]?.bets || 0
     })).sort((a, b) => a.payout - b.payout);
     
-    // Show top 5 most bet numbers
-    const topBetNumbers = [...sortedNumbers].sort((a, b) => b.bets - a.bets).slice(0, 5);
-    console.log('\n📈 Top 5 Most Bet Numbers:');
-    topBetNumbers.forEach((n, i) => {
-      console.log(`   ${i + 1}. Number ${n.number}: ${n.bets} bets, Payout: ${n.payout}`);
-    });
-    
-    // Show top 5 least bet numbers
-    const leastBetNumbers = sortedNumbers.slice(0, 5);
-    console.log('\n📉 Top 5 Least Bet Numbers (Best for House):');
-    leastBetNumbers.forEach((n, i) => {
-      console.log(`   ${i + 1}. Number ${n.number}: ${n.bets} bets, Payout: ${n.payout}`);
-    });
-    
     // Find numbers within allowed payout range
     const validNumbers = sortedNumbers.filter(n => n.payout <= maxAllowedPayout);
-    console.log(`\n✅ Valid Numbers (within payout limit): ${validNumbers.length}/100`);
     
     if (validNumbers.length > 0) {
       // Prefer numbers with lower payouts
       const topCandidates = validNumbers.slice(0, Math.max(10, Math.floor(validNumbers.length * 0.3)));
-      console.log(`🎯 Top Candidates Selected: ${topCandidates.length} numbers`);
-      
       const selected = topCandidates[Math.floor(Math.random() * topCandidates.length)];
-      
-      console.log('\n🎊 RESULT SELECTED:');
-      console.log(`   Number: ${selected.number}`);
-      console.log(`   Bets on this number: ${selected.bets}`);
-      console.log(`   Payout if wins: ${selected.payout}`);
-      console.log(`   House profit: ${totalPoints - selected.payout}`);
-      console.log(`   Actual payout %: ${((selected.payout / totalPoints) * 100).toFixed(2)}%`);
-      console.log('========================================\n');
-      
       return parseInt(selected.number);
     }
     
     // If no valid numbers, pick the one with lowest payout
-    console.log('\n⚠️  WARNING: All numbers exceed payout limit!');
-    console.log('🔧 Selecting number with lowest payout to minimize loss');
     const selected = sortedNumbers[0];
-    console.log(`   Number: ${selected.number}`);
-    console.log(`   Payout: ${selected.payout}`);
-    console.log(`   Loss: ${selected.payout - totalPoints}`);
-    console.log('========================================\n');
     return parseInt(selected.number);
     
   } catch (error) {
-    console.error('❌ Error generating smart 100D result:', error);
+    console.error('Error generating smart 100D result:', error);
     // Fallback to random
     const min = blockStart;
     const max = blockStart + 99;
     const random = Math.floor(Math.random() * (max - min + 1)) + min;
-    console.log(`🎲 Fallback to random: ${random}`);
-    console.log('========================================\n');
     return random;
   }
 }
@@ -464,66 +325,31 @@ async function calculate3DBetDistribution(drawDate, drawTime) {
 // Generate smart result for 3D game (for one option A/B/C)
 async function generateSmart3DResult(drawDate, drawTime) {
   try {
-    console.log('\n========================================');
-    console.log('🎯 3D SMART RESULT GENERATION STARTED');
-    console.log('========================================');
-    console.log(`📅 Draw Date: ${drawDate}`);
-    console.log(`⏰ Draw Time: ${drawTime}`);
-    
     const settings = await getGameSettings('3D');
-    console.log(`⚙️  Winning Percentage Setting: ${settings.winningPercentage}%`);
-    
     const { distributionA, distributionB, distributionC, totalPoints } = await calculate3DBetDistribution(drawDate, drawTime);
-    console.log(`💰 Total Points Collected: ${totalPoints}`);
     
     if (totalPoints === 0) {
-      console.log('⚠️  No bets placed for this draw');
       const resultA = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       const resultB = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       const resultC = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      console.log(`🎲 Generating random results: A=${resultA}, B=${resultB}, C=${resultC}`);
-      console.log('========================================\n');
       return { resultA, resultB, resultC };
     }
     
     const maxAllowedPayout = totalPoints * (settings.winningPercentage / 100);
-    console.log(`📊 Maximum Allowed Payout: ${maxAllowedPayout.toFixed(2)} (${settings.winningPercentage}% of ${totalPoints})`);
-    console.log(`🏦 House Edge: ${(100 - settings.winningPercentage)}%`);
-    console.log(`📊 Payout per option (A/B/C): ${(maxAllowedPayout / 3).toFixed(2)}`);
     
     // Generate result for each option (A, B, C)
-    console.log('\n🎯 Generating Result for Option A:');
     const resultA = selectBestNumber(distributionA, maxAllowedPayout / 3, 'A');
-    
-    console.log('\n🎯 Generating Result for Option B:');
     const resultB = selectBestNumber(distributionB, maxAllowedPayout / 3, 'B');
-    
-    console.log('\n🎯 Generating Result for Option C:');
     const resultC = selectBestNumber(distributionC, maxAllowedPayout / 3, 'C');
-    
-    const totalPayout = (distributionA[resultA]?.potentialPayout || 0) + 
-                        (distributionB[resultB]?.potentialPayout || 0) + 
-                        (distributionC[resultC]?.potentialPayout || 0);
-    
-    console.log('\n🎊 FINAL 3D RESULTS:');
-    console.log(`   Option A: ${resultA}`);
-    console.log(`   Option B: ${resultB}`);
-    console.log(`   Option C: ${resultC}`);
-    console.log(`   Total Payout: ${totalPayout}`);
-    console.log(`   House Profit: ${totalPoints - totalPayout}`);
-    console.log(`   Actual Payout %: ${((totalPayout / totalPoints) * 100).toFixed(2)}%`);
-    console.log('========================================\n');
     
     return { resultA, resultB, resultC };
     
   } catch (error) {
-    console.error('❌ Error generating smart 3D result:', error);
+    console.error('Error generating smart 3D result:', error);
     // Fallback to random
     const resultA = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const resultB = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const resultC = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    console.log(`🎲 Fallback to random: A=${resultA}, B=${resultB}, C=${resultC}`);
-    console.log('========================================\n');
     return { resultA, resultB, resultC };
   }
 }
@@ -540,27 +366,17 @@ function selectBestNumber(distribution, maxPayout, option) {
     bets: distribution[num]?.bets || 0
   })).sort((a, b) => a.payout - b.payout);
   
-  // Show top 5 most bet numbers
-  const topBetNumbers = [...sortedNumbers].sort((a, b) => b.bets - a.bets).slice(0, 5);
-  console.log(`   📈 Top 5 Most Bet Numbers for ${option}:`);
-  topBetNumbers.forEach((n, i) => {
-    console.log(`      ${i + 1}. ${n.number}: ${n.bets} bets, Payout: ${n.payout}`);
-  });
-  
   // Find numbers within allowed payout range
   const validNumbers = sortedNumbers.filter(n => n.payout <= maxPayout);
-  console.log(`   ✅ Valid Numbers: ${validNumbers.length}/1000`);
   
   if (validNumbers.length > 0) {
     // Prefer numbers with lower payouts
     const topCandidates = validNumbers.slice(0, Math.max(50, Math.floor(validNumbers.length * 0.3)));
     const selected = topCandidates[Math.floor(Math.random() * topCandidates.length)];
-    console.log(`   ✨ Selected: ${selected.number} (Bets: ${selected.bets}, Payout: ${selected.payout})`);
     return selected.number;
   }
   
   // If no valid numbers, pick the one with lowest payout
-  console.log(`   ⚠️  All exceed limit! Selecting lowest: ${sortedNumbers[0].number}`);
   return sortedNumbers[0].number;
 }
 
