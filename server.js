@@ -62,6 +62,8 @@ app.use('/api/100d-lottery', require('./routes/lottery100d'));
 app.use('/api/12d-lottery', require('./routes/lottery12d'));
 app.use('/api/3d-lottery', require('./routes/lottery3d'));
 app.use('/api/ticket-check', require('./routes/ticketCheck'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/settings', require('./routes/settings'));
 
 // Health check
 app.get('/', (req, res) => {

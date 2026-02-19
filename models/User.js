@@ -12,6 +12,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  name: {
+    type: String,
+    default: ''
+  },
   role: {
     type: String,
     enum: ['user', 'admin'],
@@ -20,6 +24,17 @@ const userSchema = new mongoose.Schema({
   balance: {
     type: Number,
     default: 0
+  },
+  commissionRate: {
+    type: Number,
+    default: 10,
+    min: 0,
+    max: 100
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active'
   },
   isActive: {
     type: Boolean,
