@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const LotteryResult12D = require('../models/LotteryResult12D');
 const { getISTDate, formatISTTime, getISTHours, getISTMinutes, getISTDateMidnight } = require('../utils/timezone');
+const { generateSmart12DResult } = require('../utils/smartResultGenerator');
 
 // Mapping of result numbers to image names
 const resultMapping = {
@@ -18,14 +19,10 @@ const resultMapping = {
   12: 'rabbit'
 };
 
-// Generate random result (1-12)
-function generateRandomResult() {
-  const resultNumber = Math.floor(Math.random() * 12) + 1;
-  return {
-    resultNumber,
-    result: resultMapping[resultNumber]
-  };
-}
+// Reverse mapping
+const imageToNumber = Object.fromEntries(
+  Object.entries(resultMapping).map(([num, img]) => [img, parseInt(num)])
+);
 
 // Calculate session number based on time
 function calculateSession(hours, minutes) {
@@ -64,8 +61,9 @@ async function generate12DResult() {
       return;
     }
     
-    // Generate random result
-    const { resultNumber, result } = generateRandomResult();
+    // Generate smart result based on bets and winning percentage
+    const result = await generateSmart12DResult(drawDate, drawTime);
+    const resultNumber = imageToNumber[result] || 1;
     
     // Calculate session
     const session = calculateSession(hours, minutes);
@@ -80,6 +78,8 @@ async function generate12DResult() {
     });
     
     await newResult.save();
+    
+    console.log(`✅ 12D Result generated at ${drawTime} IST: ${result} (${resultNumber})`);
     
     console.log(`12D Result generated: ${result} (${resultNumber}) at ${drawTime} IST, Session ${session}`);
     

@@ -141,7 +141,7 @@ router.get('/results/latest', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     
     const results = await LotteryResult3D.find()
-      .sort({ drawDate: -1, drawTime: -1 })
+      .sort({ drawDate: -1, session: -1, createdAt: -1 })
       .limit(limit);
     
     res.json(results);

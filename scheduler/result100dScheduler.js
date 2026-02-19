@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const LotteryResult100D = require('../models/LotteryResult100D');
 const { checkWinningTickets } = require('../routes/lottery100d');
 const { getISTDate, formatISTTime, getISTHours, getISTMinutes } = require('../utils/timezone');
+const { generateSmart100DResult } = require('../utils/smartResultGenerator');
 
 // Generate random number in range
 function getRandomNumber(min, max) {
@@ -56,7 +57,8 @@ async function generateResults() {
                 const groupStart = range.start + (group * 100);
                 const groupEnd = groupStart + 99;
                 
-                const winningNumber = getRandomNumber(groupStart, groupEnd);
+                // Generate smart result based on bets and winning percentage
+                const winningNumber = await generateSmart100DResult(drawDate, drawTime, groupStart);
                 
                 const result = new LotteryResult100D({
                     drawDate,
@@ -100,21 +102,23 @@ async function generateResults() {
 
 // Schedule to run every 15 minutes
 function start100DScheduler() {
-    console.log('Starting 100D result scheduler...');
+    console.log('🚀 100D Result Scheduler initializing...');
     
     // Run every 15 minutes: 00, 15, 30, 45
     cron.schedule('0,15,30,45 9-21 * * *', async () => {
-        console.log('Running 100D result generation...');
+        console.log('⏰ 100D Scheduled trigger activated at', new Date().toISOString());
         await generateResults();
     });
     
     // Also run at 10:00 PM (22:00) for the last draw
     cron.schedule('0 22 * * *', async () => {
-        console.log('100D: Generating final result of the day...');
+        console.log('⏰ 100D Final draw trigger activated at', new Date().toISOString());
         await generateResults();
     });
     
-    console.log('100D scheduler started - will run every 15 minutes from 9 AM to 10:00 PM');
+    console.log('✅ 100D scheduler started - will run every 15 minutes from 9 AM to 10:00 PM');
+    console.log('📅 Current IST time:', formatISTTime(getISTDate()));
+    console.log('🕐 Current IST hour:', getISTHours());
 }
 
 module.exports = { start100DScheduler, generateResults };

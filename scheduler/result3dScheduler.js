@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const LotteryResult3D = require('../models/LotteryResult3D');
 const { getISTDate, formatISTTime, getISTHours, getISTMinutes, getISTDateMidnight } = require('../utils/timezone');
+const { generateSmart3DResult } = require('../utils/smartResultGenerator');
 
 // Generate random 3-digit number (000-999)
 function generateRandom3DNumber() {
@@ -45,10 +46,8 @@ async function generate3DResult() {
       return;
     }
     
-    // Generate random 3-digit results for A, B, C
-    const resultA = generateRandom3DNumber();
-    const resultB = generateRandom3DNumber();
-    const resultC = generateRandom3DNumber();
+    // Generate smart 3-digit results for A, B, C based on bets and winning percentage
+    const { resultA, resultB, resultC } = await generateSmart3DResult(drawDate, drawTime);
     
     // Calculate session
     const session = calculateSession(hours, minutes);
@@ -65,7 +64,7 @@ async function generate3DResult() {
     
     await newResult.save();
     
-    console.log(`3D Results generated: A=${resultA}, B=${resultB}, C=${resultC} at ${drawTime} IST, Session ${session}`);
+    console.log(`✅ 3D Results generated: A=${resultA}, B=${resultB}, C=${resultC} at ${drawTime} IST, Session ${session}`);
     
     // Check winning tickets for all three results
     const { checkWinningTickets } = require('../routes/lottery3d');
@@ -92,22 +91,24 @@ async function generate3DResult() {
 
 // Start 3D scheduler
 function start3DScheduler() {
-  console.log('3D Result Scheduler started');
+  console.log('🚀 3D Result Scheduler initializing...');
   
   // Run every 15 minutes at 0, 15, 30, 45 minutes past the hour
   // Between 9 AM and 10 PM
   cron.schedule('0,15,30,45 9-21 * * *', async () => {
-    console.log('3D: Generating result...');
+    console.log('⏰ 3D Scheduled trigger activated at', new Date().toISOString());
     await generate3DResult();
   });
   
   // Also run at 10:00 PM (22:00) for the last draw
   cron.schedule('0 22 * * *', async () => {
-    console.log('3D: Generating final result of the day...');
+    console.log('⏰ 3D Final draw trigger activated at', new Date().toISOString());
     await generate3DResult();
   });
   
-  console.log('3D: Scheduler configured for every 15 minutes (9 AM - 10:00 PM)');
+  console.log('✅ 3D Scheduler configured for every 15 minutes (9 AM - 10:00 PM)');
+  console.log('📅 Current IST time:', formatISTTime(getISTDate()));
+  console.log('🕐 Current IST hour:', getISTHours());
 }
 
 module.exports = { start3DScheduler, generate3DResult };
