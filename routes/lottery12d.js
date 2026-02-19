@@ -208,7 +208,8 @@ async function checkWinningTickets(drawDate, drawTime, winningImage) {
             for (const selection of ticket.selections) {
                 if (selection.image === winningImage) {
                     won = true;
-                    winAmount += selection.quantity * 10; // 10x multiplier for 12D
+                    // 100 points per quantity (10 points bet = 100 points win)
+                    winAmount += selection.quantity * 100;
                 }
             }
             

@@ -247,7 +247,7 @@ router.post('/cancel/:ticketId', async (req, res) => {
   }
 });
 
-// Claim ticket (check win/loss)
+// Claim ticket (check win/loss) - OLD ENDPOINT, DEPRECATED
 router.post('/:ticketId/claim', async (req, res) => {
   try {
     const { winStatus, winningNumbers } = req.body;
@@ -273,6 +273,48 @@ router.post('/:ticketId/claim', async (req, res) => {
       success: true,
       message: winStatus === 'won' ? 'Congratulations! You won!' : 'No win this time',
       ticket: ticket
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Claim winning - NEW ENDPOINT (matches other games)
+router.put('/claim/:ticketId', async (req, res) => {
+  try {
+    const ticket = await Ticket.findById(req.params.ticketId);
+    
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
+    if (ticket.status !== 'won') {
+      return res.status(400).json({ message: 'This ticket has no winnings to claim' });
+    }
+
+    if (ticket.claimedAt) {
+      return res.status(400).json({ message: 'Winning already claimed' });
+    }
+
+    // Add winning amount to user balance
+    const user = await User.findById(ticket.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.balance += ticket.winAmount || 0;
+    await user.save({ validateModifiedOnly: true });
+
+    // Mark as claimed
+    ticket.claimedAt = new Date();
+    await ticket.save();
+
+    res.json({
+      success: true,
+      message: 'Winning claimed successfully',
+      winAmount: ticket.winAmount || 0,
+      newBalance: user.balance
     });
 
   } catch (error) {
