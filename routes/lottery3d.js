@@ -98,12 +98,26 @@ function checkWin(playType, betNumber, resultNumber) {
 // Check winning tickets after result is generated
 async function checkWinningTickets(drawDate, drawTime, resultA, resultB, resultC) {
   try {
+    // Create date range for the draw date (entire day)
+    const startOfDay = new Date(drawDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(drawDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    console.log(`[3D] Checking tickets for drawTime: ${drawTime}, date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
+    console.log(`[3D] Results - A: ${resultA}, B: ${resultB}, C: ${resultC}`);
+    
     const tickets = await Ticket3D.find({
-      drawDate: drawDate,
+      drawDate: {
+        $gte: startOfDay,
+        $lte: endOfDay
+      },
       drawTime: drawTime,
       status: 'active',
       winStatus: 'pending'
     });
+    
+    console.log(`[3D] Found ${tickets.length} tickets to check`);
     
     for (const ticket of tickets) {
       let totalWinAmount = 0;
@@ -157,13 +171,17 @@ async function checkWinningTickets(drawDate, drawTime, resultA, resultB, resultC
         ticket.winStatus = 'won';
         ticket.status = 'won';
         ticket.winAmount = totalWinAmount;
+        console.log(`[3D] Ticket ${ticket.serialId} WON! Amount: ${totalWinAmount}`);
       } else {
         ticket.winStatus = 'loss';
         ticket.status = 'lost';
       }
       
-      await ticket.save();
+      // Save with validateModifiedOnly to avoid validation errors on old tickets
+      await ticket.save({ validateModifiedOnly: true });
     }
+    
+    console.log(`[3D] Checked ${tickets.length} tickets for draw ${drawTime}`);
     
   } catch (error) {
     console.error('Error checking 3D winning tickets:', error);

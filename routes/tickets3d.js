@@ -222,33 +222,43 @@ router.post('/cancel/:ticketId', async (req, res) => {
 // Claim winning
 router.put('/claim/:ticketId', async (req, res) => {
   try {
+    console.log('[3D Claim] Attempting to claim ticket:', req.params.ticketId);
+    
     const ticket = await Ticket3D.findById(req.params.ticketId);
     
     if (!ticket) {
-      return res.status(404).json({ message: 'Ticket not found' });
+      console.log('[3D Claim] Ticket not found:', req.params.ticketId);
+      return res.status(404).json({ success: false, message: 'Ticket not found' });
     }
 
+    console.log('[3D Claim] Ticket found:', ticket.serialId, 'Status:', ticket.status, 'Claimed:', ticket.claimed);
+
     if (ticket.status !== 'won') {
-      return res.status(400).json({ message: 'This ticket has no winnings to claim' });
+      return res.status(400).json({ success: false, message: 'This ticket has no winnings to claim' });
     }
 
     if (ticket.claimed) {
-      return res.status(400).json({ message: 'Winning already claimed' });
+      return res.status(400).json({ success: false, message: 'Winning already claimed' });
     }
 
     // Add winning amount to user balance
     const user = await User.findById(ticket.userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      console.log('[3D Claim] User not found:', ticket.userId);
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
+
+    console.log('[3D Claim] User found:', user.loginId, 'Current balance:', user.balance, 'Win amount:', ticket.winAmount);
 
     user.balance += ticket.winAmount;
     await user.save({ validateModifiedOnly: true });
 
-    // Mark as claimed
+    // Mark as claimed (skip validation to avoid selectedOptions validation error)
     ticket.claimed = true;
     ticket.claimedAt = new Date();
-    await ticket.save();
+    await ticket.save({ validateModifiedOnly: true });
+
+    console.log('[3D Claim] Claim successful! New balance:', user.balance);
 
     res.json({
       success: true,
@@ -258,7 +268,8 @@ router.put('/claim/:ticketId', async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('[3D Claim] Error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 

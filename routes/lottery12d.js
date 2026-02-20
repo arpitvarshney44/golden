@@ -187,6 +187,8 @@ async function checkWinningTickets(drawDate, drawTime, winningImage) {
         const endOfDay = new Date(drawDate);
         endOfDay.setHours(23, 59, 59, 999);
         
+        console.log(`[12D] Checking tickets for drawTime: ${drawTime}, date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
+        
         // Find all active 12D tickets for this draw
         const tickets = await Ticket12D.find({
             drawDate: {
@@ -198,7 +200,7 @@ async function checkWinningTickets(drawDate, drawTime, winningImage) {
             winStatus: 'pending'
         });
         
-        console.log(`Found ${tickets.length} 12D tickets to check for ${drawTime} on ${drawDate.toDateString()}`);
+        console.log(`[12D] Found ${tickets.length} tickets to check for ${drawTime} on ${drawDate.toDateString()}`);
         
         for (const ticket of tickets) {
             let won = false;
@@ -218,6 +220,7 @@ async function checkWinningTickets(drawDate, drawTime, winningImage) {
                 ticket.winStatus = 'won';
                 ticket.status = 'won';
                 ticket.winAmount = winAmount;
+                console.log(`[12D] Ticket ${ticket.serialId} WON! Amount: ${winAmount}`);
             } else {
                 ticket.winStatus = 'loss';
                 ticket.status = 'lost';
@@ -226,7 +229,7 @@ async function checkWinningTickets(drawDate, drawTime, winningImage) {
             await ticket.save();
         }
         
-        console.log(`Checked ${tickets.length} 12D tickets for draw ${drawTime}, winning image: ${winningImage}`);
+        console.log(`[12D] Checked ${tickets.length} tickets for draw ${drawTime}, winning image: ${winningImage}`);
         
     } catch (error) {
         console.error('Error checking 12D winning tickets:', error);
