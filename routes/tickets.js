@@ -289,7 +289,7 @@ router.put('/claim/:ticketId', async (req, res) => {
       return res.status(404).json({ message: 'Ticket not found' });
     }
 
-    if (ticket.status !== 'won') {
+    if (ticket.winStatus !== 'won') {
       return res.status(400).json({ message: 'This ticket has no winnings to claim' });
     }
 
@@ -306,8 +306,9 @@ router.put('/claim/:ticketId', async (req, res) => {
     user.balance += ticket.winAmount || 0;
     await user.save({ validateModifiedOnly: true });
 
-    // Mark as claimed
+    // Mark as claimed and update status
     ticket.claimedAt = new Date();
+    ticket.status = 'won';
     await ticket.save();
 
     res.json({

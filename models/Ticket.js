@@ -54,6 +54,10 @@ const ticketSchema = new mongoose.Schema({
     enum: ['pending', 'won', 'loss'],
     default: 'pending'
   },
+  winAmount: {
+    type: Number,
+    default: 0
+  },
   winningNumbers: [{
     type: String
   }],
