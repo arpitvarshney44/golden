@@ -59,6 +59,11 @@ const ticket3DSchema = new mongoose.Schema({
       type: Number,
       required: true,
       default: 10
+    },
+    option: {
+      type: String,
+      enum: ['A', 'B', 'C'],
+      default: 'A'
     }
   }],
   totalQuantity: {

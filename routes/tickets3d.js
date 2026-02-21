@@ -39,7 +39,8 @@ router.post('/create', async (req, res) => {
           playType: bet.playType,
           number: bet.number,
           quantity: parseInt(bet.quantity),
-          pointsPerBet: bet.pointsPerBet || 10
+          pointsPerBet: bet.pointsPerBet || 10,
+          option: bet.option || 'A' // Store the option for each bet
         });
       }
     });
